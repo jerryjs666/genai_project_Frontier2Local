@@ -1,0 +1,23 @@
+{
+  "total_target": 7473,
+  "success_count": 7256,
+  "failed_count": 0,
+  "filtered_count": 217,
+  "skipped_count": 0,
+  "resume_skipped_count": 7381,
+  "avg_latency_sec": 0.368494,
+  "failure_rate": 0.0,
+  "usage": {
+    "prompt_tokens_sum": 1911467,
+    "completion_tokens_sum": 12810202,
+    "total_tokens_sum": 14721669,
+    "usage_missing_ratio": 0.0
+  },
+  "teacher_cot_tokens_sum": 445164,
+  "teacher_cot_tokens_count": 7256,
+  "avg_teacher_cot_tokens": 61.351158,
+  "retry_histogram": {
+    "0": 7443,
+    "1": 30
+  }
+}

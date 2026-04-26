@@ -1,0 +1,14 @@
+2026-04-26 13:20:56,309 | INFO | Starting run in outputs\runs\20260426_132022
+2026-04-26 13:20:56,310 | INFO | Config summary: dataset_start_index=0 dataset_limit=None model=qwen3.5-397b-a17b resume=True concurrency=70 use_thinking=False
+2026-04-26 13:20:57,483 | INFO | Resume scan complete. done_ids=3000
+2026-04-26 13:20:59,997 | ERROR | Fatal provider error: Error code: 403 - {'error': {'message': 'The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the "use free tier only" mode in the management console.', 'type': 'AllocationQuota.FreeTierOnly', 'param': None, 'code': 'AllocationQuota.FreeTierOnly'}, 'id': 'chatcmpl-1226a3f0-7edb-9aea-8887-abb2e9e27a2c', 'request_id': '1226a3f0-7edb-9aea-8887-abb2e9e27a2c'}
+2026-04-26 13:21:00,000 | ERROR | Run stopped early because of a fatal provider error.
+2026-04-26 13:21:00,000 | INFO | Run complete. success=2919 failed=0 filtered=81 skipped=3000
+2026-04-26 13:22:48,198 | INFO | Starting run in outputs\runs\20260426_132022
+2026-04-26 13:22:48,199 | INFO | Config summary: dataset_start_index=0 dataset_limit=None model=qwen3.5-397b-a17b resume=True concurrency=70 use_thinking=False
+2026-04-26 13:22:49,419 | INFO | Resume scan complete. done_ids=3000
+2026-04-26 14:13:33,199 | INFO | Run complete. success=7256 failed=0 filtered=217 skipped=6000
+2026-04-26 14:14:49,207 | INFO | Starting run in outputs\runs\20260426_132022
+2026-04-26 14:14:49,207 | INFO | Config summary: dataset_start_index=0 dataset_limit=None model=qwen3.5-397b-a17b resume=True concurrency=70 use_thinking=False
+2026-04-26 14:14:50,509 | INFO | Resume scan complete. done_ids=7381
+2026-04-26 14:16:30,243 | INFO | Run complete. success=7256 failed=0 filtered=217 skipped=0

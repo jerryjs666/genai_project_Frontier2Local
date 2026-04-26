@@ -1,0 +1,23 @@
+dataset:
+  name: openai/gsm8k
+  config: main
+  split: train
+  start_index: 0
+  limit:
+
+teacher:
+  model: qwen3.5-397b-a17b
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  api_key: ""
+  api_key_env: DASHSCOPE_API_KEY
+  use_thinking: false
+  system_prompt_path: prompts/teacher_system_prompt.txt
+  max_concurrency: 70
+  timeout_sec: 90
+  max_retries: 2
+  backoff_base_sec: 2
+
+run:
+  output_root: outputs/runs
+  run_name: "20260426_132022"
+  resume: true

@@ -1,0 +1,26 @@
+{
+  "gsm8k_sft_all": {
+    "file_name": "gsm8k_sft_all.json",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "gsm8k_sft_train": {
+    "file_name": "gsm8k_sft_train.json",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "gsm8k_sft_val": {
+    "file_name": "gsm8k_sft_val.json",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  }
+}

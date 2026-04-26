@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "teacher-data-gen"
+version = "0.1.0"
+description = "Minimal GSM8K teacher data generation module for SFT distillation."
+requires-python = ">=3.10"
+dependencies = [
+  "datasets>=4.8.4",
+  "openai>=1.0.0",
+  "PyYAML>=6.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
