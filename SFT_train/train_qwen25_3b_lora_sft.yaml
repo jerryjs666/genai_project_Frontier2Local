@@ -1,4 +1,4 @@
-model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+model_name_or_path: Qwen/Qwen2.5-3B
 trust_remote_code: true
 stage: sft
 do_train: true
@@ -15,7 +15,7 @@ eval_dataset: gsm8k_sft_val
 cutoff_len: 512
 overwrite_cache: true
 preprocessing_num_workers: 2
-output_dir: /content/project/SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
+output_dir: /content/project/SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
 logging_steps: 10
 save_steps: 25
 save_strategy: steps
@@ -48,4 +48,4 @@ greater_is_better: false
 save_only_model: true
 use_swanlab: true
 swanlab_project: gsm8k-lora-sft
-swanlab_run_name: qwen2.5-3b-gsm8k-lora-sft-full
+swanlab_run_name: qwen2.5-3b-base-gsm8k-lora-sft-full
