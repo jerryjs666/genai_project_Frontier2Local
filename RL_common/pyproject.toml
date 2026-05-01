@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rl-common"
+version = "0.1.0"
+description = "Shared GSM8K RL utilities for rollout diagnostics and GRPO training."
+requires-python = ">=3.10"
+dependencies = [
+  "datasets>=4.8.4",
+  "peft>=0.10.0",
+  "PyYAML>=6.0",
+  "torch",
+  "transformers",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
