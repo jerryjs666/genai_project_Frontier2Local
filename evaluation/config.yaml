@@ -1,0 +1,32 @@
+# evaluation/config.yaml
+# ─────────────────────────────────────────────
+# Change these fields to evaluate a different model or checkpoint.
+# ─────────────────────────────────────────────
+
+# Base model on HuggingFace Hub
+model_id: "Qwen/Qwen2.5-3B-Instruct"
+
+# LoRA checkpoint path (relative to project root, or absolute)
+# Set to null to evaluate the base model only (no adapter)
+lora_checkpoint: "SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full/checkpoint-1200"
+
+# Dataset
+dataset_name: "openai/gsm8k"
+dataset_config: "main"
+
+# Which splits to evaluate
+# Options: ["test"], ["train"], ["test", "train"]
+splits:
+  - test
+
+# Generation settings
+max_new_tokens: 512
+eval_batch_size: 64
+
+# Output directory (relative to project root)
+output_dir: "evaluation/results"
+
+# Output filename prefix
+# Results will be saved as: {output_prefix}_{split}.json
+# e.g. sft_checkpoint1200_test.json
+output_prefix: "sft_checkpoint1200"
