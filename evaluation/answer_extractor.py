@@ -2,11 +2,11 @@
 answer_extractor.py
 -------------------
 Robust answer extraction and correctness checking for GSM8K evaluation.
+Provides:
+- extract_answer(text): Extracts final numeric answer from model output.
+- official_gold(answer_text): Extracts gold answer from GSM8K ground truth.
+- is_correct(predicted, gold): Compares predicted and gold answers for correctness.
 
-Fixes over the original notebook version:
-  - Fractions like 5/6 are correctly parsed
-  - Trailing punctuation like "26.0." is stripped before comparison
-  - Comma-separated thousands like "1,000" are handled
 """
 
 import re

@@ -2,7 +2,12 @@
 evaluate.py
 -----------
 Core evaluation logic for GSM8K.
-Imported by run_eval_colab.ipynb — do not run directly.
+Provides:
+- run_evaluation(model, tokenizer, dataset, device, ...): Main evaluation loop.
+- save_results(summary, results, output_path): Save results to JSON.
+- print_summary(label, summary): Nicely print summary statistics.
+- print_wrong_examples(results, n): Show a few wrong predictions for analysis.
+
 """
 
 import json
