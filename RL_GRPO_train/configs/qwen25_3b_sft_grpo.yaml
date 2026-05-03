@@ -47,19 +47,19 @@ reward:
 
 eval:
   every_steps: 10
-  batch_size: 370
+  batch_size: 128
   max_prompt_length: 512
-  max_new_tokens: 256
+  max_new_tokens: 128
   metric_for_best: exact_match
 
 grpo:
-  per_device_train_batch_size: 32
-  num_generations: 16
-  generation_batch_size: 512
-  gradient_accumulation_steps: 1
+  per_device_train_batch_size: 4
+  num_generations: 8
+  generation_batch_size: 128
+  gradient_accumulation_steps: 2
   learning_rate: 1.0e-6
   max_prompt_length: 512
-  max_completion_length: 256
+  max_completion_length: 128
   max_steps: 100
   warmup_ratio: 0.03
   weight_decay: 0.0
