@@ -1,0 +1,11 @@
+model_id: Qwen/Qwen2.5-3B
+lora_checkpoint: /content/genai_project_Frontier2Local/RL_GRPO_train/outputs/qwen25_3b_base_sft_grpo_g8_trainall/final_adapter
+dataset_name: openai/gsm8k
+dataset_config: main
+splits:
+- test
+max_new_tokens: 128
+eval_batch_size: 128
+output_dir: evaluation/results/qwen25_3b_base_sft_grpo_g8_trainall
+output_prefix: qwen25_3b_base_sft_grpo_g8_trainall_final_adapter
+tokenizer_id: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
