@@ -386,14 +386,16 @@ def _summarize_per_response_rewards(rows: list[dict[str, Any]]) -> dict[str, Any
             }
 
     grouped: dict[tuple[int, int], dict[str, Any]] = {}
+    component_count = len(reward_names) or 1
     for row in numeric_rows:
         call_id = int(row.get("reward_call_id", -1))
         sample_idx = int(row.get("sample_index_in_batch", -1))
-        key = (call_id, sample_idx)
+        response_group_id = call_id // component_count
+        key = (response_group_id, sample_idx)
         group = grouped.setdefault(
             key,
             {
-                "reward_call_id": call_id,
+                "response_group_id": response_group_id,
                 "sample_index_in_batch": sample_idx,
                 "total_reward": 0.0,
                 "components": {},
