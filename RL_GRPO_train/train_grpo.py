@@ -93,6 +93,34 @@ class GreedyEvalAndBestSaveCallback(TrainerCallback):
         return result
 
 
+class JsonlTrainerLogCallback(TrainerCallback):
+    """Mirror every Trainer/TRL log row to a local JSONL file.
+
+    TRL's GRPOTrainer emits reward/KL metrics through the normal Trainer
+    logging path when those metrics are available. Saving each on_log payload
+    makes the reward/KL values recoverable even when they are not included in
+    custom summary files.
+    """
+
+    def __init__(self, log_path: Path) -> None:
+        self.log_path = log_path
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs is None:
+            return control
+        if not state.is_world_process_zero:
+            return control
+
+        row = dict(logs)
+        row["step"] = state.global_step
+
+        with self.log_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+        return control
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
@@ -155,15 +183,24 @@ def main() -> None:
         run_dir=run_dir,
     )
 
+    metrics_callback = JsonlTrainerLogCallback(run_dir / "trainer_metrics.jsonl")
+
     trainer = GRPOTrainer(
         model=model,
         args=grpo_args,
         reward_funcs=reward_funcs,
         train_dataset=train_dataset,
         processing_class=tokenizer,
-        callbacks=[callback],
+        callbacks=[callback, metrics_callback],
     )
     train_output = trainer.train()
+
+    trainer.state.save_to_json(str(run_dir / "trainer_state.json"))
+    _write_json(run_dir / "trainer_log_history.json", trainer.state.log_history)
+    jsonl_log_history = _read_jsonl(run_dir / "trainer_metrics.jsonl")
+    combined_log_history = _merge_log_rows(trainer.state.log_history, jsonl_log_history)
+    reward_kl_summary = _summarize_reward_kl(combined_log_history)
+    _write_json(run_dir / "reward_kl_summary.json", reward_kl_summary)
 
     if callback.best_metric is None:
         callback.evaluate_and_save_if_best(trainer.model, trainer.state.global_step)
@@ -171,6 +208,7 @@ def main() -> None:
     train_summary = {
         "global_step": trainer.state.global_step,
         "train_metrics": train_output.metrics,
+        "reward_kl_metrics": reward_kl_summary,
         "best_step": callback.best_step,
         "best_metric": callback.best_metric,
         "best_metric_name": f"sft_val/{callback.metric_for_best}",
@@ -200,6 +238,79 @@ def _try_swanlab_log(summary: dict[str, Any], step: int) -> None:
         swanlab.log({f"sft_val/{key}": value for key, value in summary.items() if isinstance(value, (int, float))}, step=step)
     except Exception:
         return
+
+
+
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+
+    rows: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(row, dict):
+                rows.append(row)
+    return rows
+
+
+def _merge_log_rows(*sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Merge log rows while removing exact duplicates."""
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for rows in sources:
+        for row in rows:
+            key = json.dumps(row, sort_keys=True, ensure_ascii=False, default=str)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(row)
+    return merged
+
+
+def _summarize_reward_kl(log_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    metric_keys = sorted(
+        {
+            key
+            for row in log_rows
+            for key in row.keys()
+            if ("reward" in key.lower()) or ("kl" in key.lower())
+        }
+    )
+
+    rows_with_reward_or_kl = [
+        row for row in log_rows if any(key in row for key in metric_keys)
+    ]
+
+    metrics: dict[str, dict[str, float | int]] = {}
+    for key in metric_keys:
+        values = [
+            float(row[key])
+            for row in log_rows
+            if key in row and isinstance(row[key], (int, float))
+        ]
+        if values:
+            metrics[key] = {
+                "count": len(values),
+                "last": values[-1],
+                "mean": sum(values) / len(values),
+                "min": min(values),
+                "max": max(values),
+            }
+
+    return {
+        "num_log_rows_total": len(log_rows),
+        "num_log_rows_with_reward_or_kl": len(rows_with_reward_or_kl),
+        "metric_keys": metric_keys,
+        "metrics": metrics,
+        "recent_rows": rows_with_reward_or_kl[-10:],
+    }
 
 
 def _write_json(path: Path, payload: Any) -> None:
