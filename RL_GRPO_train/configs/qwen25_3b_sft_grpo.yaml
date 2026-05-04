@@ -1,14 +1,14 @@
 run:
-  name: qwen25_3b_base_sft_grpo_g{grpo.num_generations}_train{train_dataset.limit}
+  name: qwen25_3b_instruct_sft_grpo_g{grpo.num_generations}_train{train_dataset.limit}
   output_root: RL_GRPO_train/outputs
 
 model:
-  base_model_name_or_path: Qwen/Qwen2.5-3B
-  adapter_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
-  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
+  base_model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+  adapter_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
+  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
   trust_remote_code: true
   prompt_template: qwen_chat
-  system_prompt: "You are a helpful assistant."
+  system_prompt: ""
   include_empty_system: false
   dtype: bf16
   device_map:
@@ -40,25 +40,23 @@ reward:
   answer_correct: 1.0
   answer_incorrect: 0.0
   format_reward: 0.3
-  eos_reward: 0.2
   parse_fail_penalty: -0.2
   length_penalty: -0.05
   min_completion_tokens: 20
-  max_completion_tokens: 200
-  trailing_text_penalty: -0.4
+  max_completion_tokens: 125
 
 eval:
   every_steps: 10
-  batch_size: 128
+  batch_size: 370
   max_prompt_length: 512
-  max_new_tokens: 128
+  max_new_tokens: 256
   metric_for_best: exact_match
 
 grpo:
-  per_device_train_batch_size: 4
-  num_generations: 8
-  generation_batch_size: 128
-  gradient_accumulation_steps: 2
+  per_device_train_batch_size: 32
+  num_generations: 16
+  generation_batch_size: 512
+  gradient_accumulation_steps: 1
   learning_rate: 1.0e-6
   max_prompt_length: 512
   max_completion_length: 128
@@ -74,6 +72,6 @@ grpo:
   gradient_checkpointing: true
   bf16: true
   report_to: "swanlab"
-  run_name: qwen25_3b_base_sft_grpo_g{grpo.num_generations}
+  run_name: qwen25_3b_instruct_sft_grpo_g{grpo.num_generations}
   use_vllm: true
   vllm_mode: colocate

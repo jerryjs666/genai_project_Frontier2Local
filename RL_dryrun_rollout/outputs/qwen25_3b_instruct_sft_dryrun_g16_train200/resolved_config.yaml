@@ -1,0 +1,40 @@
+run:
+  name: qwen25_3b_instruct_sft_dryrun_g{generation.num_generations}_train{dataset.limit}
+  output_root: RL_dryrun_rollout/outputs
+  resolved_name: qwen25_3b_instruct_sft_dryrun_g16_train200
+model:
+  base_model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+  adapter_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
+  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
+  trust_remote_code: true
+  prompt_template: qwen_chat
+  system_prompt: ''
+  include_empty_system: false
+  dtype: bf16
+  device_map: auto
+  load_in_4bit: false
+  is_trainable_adapter: false
+dataset:
+  kind: gsm8k_train_subset
+  name: openai/gsm8k
+  config: main
+  start_index: 0
+  limit: 200
+generation:
+  num_generations: 16
+  batch_size: 512
+  max_prompt_length: 512
+  max_new_tokens: 256
+  do_sample: true
+  temperature: 0.8
+  top_p: 0.95
+reward:
+  answer_correct: 1.0
+  answer_incorrect: 0.0
+  format_reward: 0.1
+  parse_fail_penalty: -0.1
+  length_penalty: -0.05
+  min_completion_tokens: 20
+  max_completion_tokens: 200
+inspection:
+  sample_count: 20

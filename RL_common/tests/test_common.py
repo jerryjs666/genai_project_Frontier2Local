@@ -19,6 +19,20 @@ class AnswerExtractionTest(unittest.TestCase):
     def test_fallback_last_number(self):
         self.assertEqual(extract_answer("2 + 2 = 4, then add 3 to get 7"), "7")
 
+    def test_conclusion_sentence_fallback(self):
+        self.assertEqual(extract_answer("So, it takes a total of 3 bolts to make a robe."), "3")
+
+    def test_question_echo_is_not_answer(self):
+        text = "If James is 10 and is 1 year younger than Corey, how old is Jackson?"
+        self.assertIsNone(extract_answer(text))
+
+    def test_error_statement_is_not_answer(self):
+        text = "Cindy has 1.33 - 2 = -0.67 pets. However, there must be an error in the problem statement."
+        self.assertIsNone(extract_answer(text))
+
+    def test_stray_comma_is_not_answer(self):
+        self.assertIsNone(extract_answer("No numeric answer here,"))
+
     def test_negative_decimal(self):
         self.assertEqual(extract_answer("The answer is -3.50."), "-3.5")
 
@@ -76,7 +90,7 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(name, "grpo_g4_trainall")
 
     def test_hf_model_id_is_not_forced_to_local_path(self):
-        self.assertEqual(resolve_local_path_if_exists("Qwen/Qwen2.5-3B"), "Qwen/Qwen2.5-3B")
+        self.assertEqual(resolve_local_path_if_exists("Qwen/Qwen2.5-3B-Instruct"), "Qwen/Qwen2.5-3B-Instruct")
 
 
 class PromptTest(unittest.TestCase):

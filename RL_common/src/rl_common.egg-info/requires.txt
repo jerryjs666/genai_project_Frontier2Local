@@ -1,5 +1,0 @@
-datasets>=4.8.4
-peft>=0.10.0
-PyYAML>=6.0
-torch
-transformers

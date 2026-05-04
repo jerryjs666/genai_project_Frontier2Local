@@ -1,0 +1,16 @@
+{
+  "prompt_count": 200,
+  "completion_count": 3200,
+  "all_correct_rate": 0.37,
+  "all_wrong_rate": 0.015,
+  "mixed_rate": 0.615,
+  "parse_fail_rate": 0.0,
+  "eos_stop_rate": 0.999062,
+  "avg_completion_length": 95.86125,
+  "reward_distribution": {
+    "mean": 0.891984,
+    "std": 0.406356,
+    "min": -0.05,
+    "max": 1.1
+  }
+}

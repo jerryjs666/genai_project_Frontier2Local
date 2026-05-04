@@ -1,11 +1,11 @@
 run:
-  name: qwen25_3b_base_sft_dryrun_g{generation.num_generations}_train{dataset.limit}
+  name: qwen25_3b_instruct_sft_dryrun_g{generation.num_generations}_train{dataset.limit}
   output_root: RL_dryrun_rollout/outputs
 
 model:
-  base_model_name_or_path: Qwen/Qwen2.5-3B
-  adapter_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
-  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
+  base_model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+  adapter_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
+  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
   trust_remote_code: true
   prompt_template: qwen_chat
   system_prompt: ""
@@ -26,19 +26,19 @@ generation:
   num_generations: 16
   batch_size: 512
   max_prompt_length: 512
-  max_new_tokens: 128
+  max_new_tokens: 256
   do_sample: true
-  temperature: 0.7
+  temperature: 0.8
   top_p: 0.95
 
 reward:
   answer_correct: 1.0
   answer_incorrect: 0.0
-  format_reward: 0.2
+  format_reward: 0.1
   parse_fail_penalty: -0.1
   length_penalty: -0.05
   min_completion_tokens: 20
-  max_completion_tokens: 125
+  max_completion_tokens: 200
 
 inspection:
   sample_count: 20

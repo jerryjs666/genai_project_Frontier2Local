@@ -11,6 +11,21 @@ ANSWER_IS_RE = re.compile(
 GSM8K_MARKER_RE = re.compile(rf"####\s*({NUMBER_PATTERN})")
 BOXED_RE = re.compile(r"\\boxed\s*\{([^{}]+)\}")
 NUMBER_RE = re.compile(NUMBER_PATTERN)
+NO_ANSWER_RE = re.compile(
+    r"(?i)\b(?:"
+    r"error in (?:the )?(?:problem|question|problem statement)|"
+    r"mistake in (?:the )?(?:problem|question|problem statement)|"
+    r"not possible|cannot be determined|can't determine|"
+    r"not enough information|insufficient information|ambiguous|does not make sense"
+    r")\b"
+)
+CONCLUSION_CUE_RE = re.compile(
+    r"(?i)\b(?:"
+    r"so|therefore|thus|hence|finally|in total|total|altogether|together|overall|"
+    r"result|equals?|comes to|gives|makes?|earns?|costs?|spends?|saves?|runs?|"
+    r"needs?|left|remaining"
+    r")\b"
+)
 
 
 def extract_gsm8k_gold_answer(answer_text: str) -> str:
@@ -38,7 +53,11 @@ def extract_answer(text: str | None) -> str | None:
         if number is not None:
             return normalize_answer(number)
 
-    number = _last_number(text)
+    number = _fallback_last_number(text)
+    if number is not None:
+        return normalize_answer(number)
+
+    number = _fallback_conclusion_number(text)
     if number is not None:
         return normalize_answer(number)
     return None
@@ -81,6 +100,39 @@ def answers_match(predicted: str | None, gold: str | None) -> bool:
 def _last_number(text: str) -> str | None:
     matches = NUMBER_RE.findall(text)
     return matches[-1] if matches else None
+
+
+def _fallback_conclusion_number(text: str) -> str | None:
+    if NO_ANSWER_RE.search(text):
+        return None
+
+    tail = text.strip()[-1000:]
+    if not tail:
+        return None
+
+    sentences = [
+        item.strip()
+        for item in re.split(r"(?<=[.!?])\s+", tail.replace("\n", " "))
+        if item.strip()
+    ]
+    for sentence in reversed(sentences[-4:]):
+        if sentence.endswith("?"):
+            continue
+        if not CONCLUSION_CUE_RE.search(sentence):
+            continue
+        number = _last_number(sentence)
+        if number is not None:
+            return number
+    return None
+
+
+def _fallback_last_number(text: str) -> str | None:
+    stripped = text.strip()
+    if NO_ANSWER_RE.search(stripped):
+        return None
+    if stripped.endswith("?"):
+        return None
+    return _last_number(stripped)
 
 
 def _to_decimal(value: str) -> Decimal | None:
