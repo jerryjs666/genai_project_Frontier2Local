@@ -319,6 +319,114 @@ def _try_swanlab_log(summary: dict[str, Any], step: int) -> None:
 
 
 
+
+def _json_safe_scalar(value: Any) -> Any:
+    try:
+        import torch
+
+        if isinstance(value, torch.Tensor):
+            if value.numel() == 1:
+                return float(value.detach().cpu().item())
+            return value.detach().cpu().tolist()
+    except Exception:
+        pass
+
+    try:
+        import numpy as np
+
+        if isinstance(value, np.generic):
+            return value.item()
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+    except Exception:
+        pass
+
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _json_safe_value(value: Any) -> Any:
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, dict):
+        return {str(k): _json_safe_value(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe_value(v) for v in value]
+    return _json_safe_scalar(value)
+
+
+def _summarize_per_response_rewards(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize component and total rewards saved by PerResponseRewardLogger."""
+    numeric_rows = [
+        row for row in rows
+        if isinstance(row.get("reward"), (int, float))
+    ]
+
+    component_metrics: dict[str, dict[str, float | int]] = {}
+    reward_names = sorted({str(row.get("reward_name")) for row in numeric_rows})
+    for reward_name in reward_names:
+        values = [
+            float(row["reward"])
+            for row in numeric_rows
+            if str(row.get("reward_name")) == reward_name
+        ]
+        if values:
+            component_metrics[reward_name] = {
+                "count": len(values),
+                "last": values[-1],
+                "mean": sum(values) / len(values),
+                "min": min(values),
+                "max": max(values),
+            }
+
+    grouped: dict[tuple[int, int], dict[str, Any]] = {}
+    for row in numeric_rows:
+        call_id = int(row.get("reward_call_id", -1))
+        sample_idx = int(row.get("sample_index_in_batch", -1))
+        key = (call_id, sample_idx)
+        group = grouped.setdefault(
+            key,
+            {
+                "reward_call_id": call_id,
+                "sample_index_in_batch": sample_idx,
+                "total_reward": 0.0,
+                "components": {},
+            },
+        )
+        reward_name = str(row.get("reward_name"))
+        reward_value = float(row["reward"])
+        group["components"][reward_name] = reward_value
+        group["total_reward"] += reward_value
+        for optional_key in ("prompt", "completion", "answer"):
+            if optional_key in row and optional_key not in group:
+                group[optional_key] = row[optional_key]
+
+    total_rewards = [float(group["total_reward"]) for group in grouped.values()]
+    total_reward_metrics = {}
+    if total_rewards:
+        total_reward_metrics = {
+            "count": len(total_rewards),
+            "last": total_rewards[-1],
+            "mean": sum(total_rewards) / len(total_rewards),
+            "min": min(total_rewards),
+            "max": max(total_rewards),
+        }
+
+    recent_totals = sorted(
+        grouped.values(),
+        key=lambda row: (row["reward_call_id"], row["sample_index_in_batch"]),
+    )[-10:]
+
+    return {
+        "num_component_reward_rows": len(rows),
+        "num_numeric_component_reward_rows": len(numeric_rows),
+        "num_response_reward_rows": len(grouped),
+        "component_metrics": component_metrics,
+        "total_reward_metrics": total_reward_metrics,
+        "recent_response_rewards": recent_totals,
+    }
+
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
