@@ -121,6 +121,65 @@ class JsonlTrainerLogCallback(TrainerCallback):
         return control
 
 
+class PerResponseRewardLogger:
+    """Wrap reward functions and save per-completion rewards to JSONL.
+
+    GRPOTrainer calls each reward function with a batch of completions. This
+    wrapper records the reward assigned to each completion by each reward
+    component. The resulting file can be grouped by reward_call_id and
+    sample_index_in_batch to inspect the total reward for each sampled response.
+    """
+
+    def __init__(self, log_path: Path) -> None:
+        self.log_path = log_path
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self.call_id = 0
+
+    def wrap(self, name: str, reward_func: Any):
+        def wrapped_reward_func(*args, **kwargs):
+            rewards = reward_func(*args, **kwargs)
+            call_id = self.call_id
+            self.call_id += 1
+
+            prompts = kwargs.get("prompts")
+            completions = kwargs.get("completions")
+            completion_ids = kwargs.get("completion_ids")
+            answers = (
+                kwargs.get("answer")
+                or kwargs.get("answers")
+                or kwargs.get("gold_answer")
+                or kwargs.get("gold_answers")
+            )
+
+            rows = []
+            for i, reward in enumerate(rewards):
+                row: dict[str, Any] = {
+                    "reward_call_id": call_id,
+                    "reward_name": name,
+                    "sample_index_in_batch": i,
+                    "reward": _json_safe_scalar(reward),
+                }
+
+                if prompts is not None and i < len(prompts):
+                    row["prompt"] = _json_safe_value(prompts[i])
+                if completions is not None and i < len(completions):
+                    row["completion"] = _json_safe_value(completions[i])
+                if completion_ids is not None and i < len(completion_ids):
+                    row["completion_ids"] = _json_safe_value(completion_ids[i])
+                if answers is not None and i < len(answers):
+                    row["answer"] = _json_safe_value(answers[i])
+
+                rows.append(row)
+
+            with self.log_path.open("a", encoding="utf-8") as f:
+                for row in rows:
+                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+            return rewards
+
+        return wrapped_reward_func
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
@@ -160,18 +219,32 @@ def main() -> None:
     eval_examples = load_examples(config["eval_dataset"])
     train_dataset = build_trl_dataset(train_examples, prompt_cfg)
 
+    per_response_reward_logger = PerResponseRewardLogger(run_dir / "per_response_rewards.jsonl")
+    raw_reward_funcs = [
+        (
+            "answer_reward",
+            make_answer_reward_func(
+                correct_reward=float(reward_cfg.get("answer_correct", 1.0)),
+                incorrect_reward=float(reward_cfg.get("answer_incorrect", 0.0)),
+            ),
+        ),
+        (
+            "format_reward",
+            make_format_reward_func(float(reward_cfg.get("format_reward", 0.2))),
+        ),
+        (
+            "penalty_reward",
+            make_penalty_reward_func(
+                parse_fail_penalty=float(reward_cfg.get("parse_fail_penalty", -0.1)),
+                length_penalty=float(reward_cfg.get("length_penalty", -0.05)),
+                min_completion_tokens=reward_cfg.get("min_completion_tokens"),
+                max_completion_tokens=reward_cfg.get("max_completion_tokens"),
+            ),
+        ),
+    ]
     reward_funcs = [
-        make_answer_reward_func(
-            correct_reward=float(reward_cfg.get("answer_correct", 1.0)),
-            incorrect_reward=float(reward_cfg.get("answer_incorrect", 0.0)),
-        ),
-        make_format_reward_func(float(reward_cfg.get("format_reward", 0.2))),
-        make_penalty_reward_func(
-            parse_fail_penalty=float(reward_cfg.get("parse_fail_penalty", -0.1)),
-            length_penalty=float(reward_cfg.get("length_penalty", -0.05)),
-            min_completion_tokens=reward_cfg.get("min_completion_tokens"),
-            max_completion_tokens=reward_cfg.get("max_completion_tokens"),
-        ),
+        per_response_reward_logger.wrap(name, func)
+        for name, func in raw_reward_funcs
     ]
 
     grpo_args = _build_grpo_config(GRPOConfig, config["grpo"], run_dir)
@@ -202,6 +275,10 @@ def main() -> None:
     reward_kl_summary = _summarize_reward_kl(combined_log_history)
     _write_json(run_dir / "reward_kl_summary.json", reward_kl_summary)
 
+    per_response_reward_rows = _read_jsonl(run_dir / "per_response_rewards.jsonl")
+    per_response_reward_summary = _summarize_per_response_rewards(per_response_reward_rows)
+    _write_json(run_dir / "per_response_reward_summary.json", per_response_reward_summary)
+
     if callback.best_metric is None:
         callback.evaluate_and_save_if_best(trainer.model, trainer.state.global_step)
 
@@ -209,6 +286,7 @@ def main() -> None:
         "global_step": trainer.state.global_step,
         "train_metrics": train_output.metrics,
         "reward_kl_metrics": reward_kl_summary,
+        "per_response_reward_metrics": per_response_reward_summary,
         "best_step": callback.best_step,
         "best_metric": callback.best_metric,
         "best_metric_name": f"sft_val/{callback.metric_for_best}",
