@@ -19,7 +19,7 @@ from rl_common.config import format_run_name, load_config, make_run_dir, save_ya
 from rl_common.data import build_trl_dataset, load_examples
 from rl_common.eval import run_greedy_eval
 from rl_common.model import load_policy_model, load_tokenizer, save_adapter_or_model
-from rl_common.rewards import make_answer_reward_func, make_format_reward_func, make_penalty_reward_func
+from rl_common.rewards import make_answer_reward_func, make_format_reward_func, make_penalty_reward_func, make_eos_reward_func
 
 
 def parse_args() -> argparse.Namespace:
