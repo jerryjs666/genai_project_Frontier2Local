@@ -8,7 +8,7 @@ model:
   tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
   trust_remote_code: true
   prompt_template: qwen_chat
-  system_prompt: ""
+  system_prompt: "You are a helpful assistant."
   include_empty_system: false
   dtype: bf16
   device_map:
@@ -40,10 +40,12 @@ reward:
   answer_correct: 1.0
   answer_incorrect: 0.0
   format_reward: 0.3
+  eos_reward: 0.2
   parse_fail_penalty: -0.2
   length_penalty: -0.05
   min_completion_tokens: 20
   max_completion_tokens: 200
+  trailing_text_penalty: -0.4
 
 eval:
   every_steps: 10

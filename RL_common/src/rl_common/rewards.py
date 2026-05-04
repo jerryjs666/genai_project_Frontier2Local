@@ -9,6 +9,15 @@ from .prompts import completion_to_text
 
 
 STRICT_FORMAT_RE = re.compile(r"(?is).*the\s+(?:final\s+)?answer\s+is\s*[:=]?\s*[-+]?\$?\d[\d,]*(?:\.\d+)?\s*\.\s*$")
+TRAILING_TEXT_RE = re.compile(r"(?is)(?:the\s+(?:final\s+)?answer\s+is\s*[:=]?\s*[-+]?\$?\d[\d,]*(?:\.\d+)?\s*\.\s*)(.+)$")
+
+
+def has_trailing_text_after_answer(text: str) -> bool:
+    match = TRAILING_TEXT_RE.search(text.strip())
+    if not match:
+        return False
+    trailing = match.group(1).strip()
+    return bool(trailing)
 
 
 def score_completion(
@@ -37,6 +46,9 @@ def score_completion(
         penalty += float(cfg.get("length_penalty", -0.05))
     if max_tokens is not None and token_count > int(max_tokens):
         penalty += float(cfg.get("length_penalty", -0.05))
+
+    if has_trailing_text_after_answer(completion):
+        penalty += float(cfg.get("trailing_text_penalty", -0.4))
 
     total_reward = answer_reward + format_reward + penalty
     return {
@@ -85,17 +97,37 @@ def make_format_reward_func(format_reward_value: float = 0.2) -> Callable[..., l
     return format_reward
 
 
+def make_eos_reward_func(eos_reward: float = 0.0) -> Callable[..., list[float]]:
+    def eos_reward_func(completions, log_metric=None, **kwargs):
+        rewards = []
+        eos_count = 0
+        for item in completions:
+            is_eos = isinstance(item, dict) and bool(item.get("stopped_by_eos", False))
+            reward = eos_reward if is_eos else 0.0
+            if is_eos:
+                eos_count += 1
+            rewards.append(float(reward))
+        if log_metric and rewards:
+            log_metric("eos_stop_rate", eos_count / len(rewards))
+        return rewards
+
+    eos_reward_func.__name__ = "eos_reward"
+    return eos_reward_func
+
+
 def make_penalty_reward_func(
     parse_fail_penalty: float = -0.1,
     length_penalty: float = -0.05,
     min_completion_tokens: int | None = None,
     max_completion_tokens: int | None = None,
+    trailing_text_penalty: float = 0.0,
 ) -> Callable[..., list[float]]:
     def penalty_reward(completions, completion_ids=None, log_metric=None, **kwargs):
         texts = [completion_to_text(item) for item in completions]
         rewards = []
         parse_fail_count = 0
         length_penalty_count = 0
+        trailing_text_penalty_count = 0
         for idx, text in enumerate(texts):
             reward = 0.0
             if extract_answer(text) is None:
@@ -107,10 +139,14 @@ def make_penalty_reward_func(
             if too_short or too_long:
                 reward += length_penalty
                 length_penalty_count += 1
+            if trailing_text_penalty and has_trailing_text_after_answer(text):
+                reward += trailing_text_penalty
+                trailing_text_penalty_count += 1
             rewards.append(float(reward))
         if log_metric and rewards:
             log_metric("parse_fail_rate", parse_fail_count / len(rewards))
             log_metric("length_penalty_rate", length_penalty_count / len(rewards))
+            log_metric("trailing_text_rate", trailing_text_penalty_count / len(rewards))
         return rewards
 
     penalty_reward.__name__ = "penalty_reward"

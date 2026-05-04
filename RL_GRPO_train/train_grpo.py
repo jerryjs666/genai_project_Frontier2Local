@@ -233,12 +233,17 @@ def main() -> None:
             make_format_reward_func(float(reward_cfg.get("format_reward", 0.2))),
         ),
         (
+            "eos_reward",
+            make_eos_reward_func(float(reward_cfg.get("eos_reward", 0.2))),
+        ),
+        (
             "penalty_reward",
             make_penalty_reward_func(
                 parse_fail_penalty=float(reward_cfg.get("parse_fail_penalty", -0.1)),
                 length_penalty=float(reward_cfg.get("length_penalty", -0.05)),
                 min_completion_tokens=reward_cfg.get("min_completion_tokens"),
                 max_completion_tokens=reward_cfg.get("max_completion_tokens"),
+                trailing_text_penalty=float(reward_cfg.get("trailing_text_penalty", -0.5)),
             ),
         ),
     ]
