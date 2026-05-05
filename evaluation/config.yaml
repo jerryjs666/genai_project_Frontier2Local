@@ -21,7 +21,7 @@ splits:
 
 # Generation settings
 max_new_tokens: 512
-eval_batch_size: 64
+eval_batch_size: 256
 
 # Output directory (relative to project root)
 output_dir: "evaluation/results"

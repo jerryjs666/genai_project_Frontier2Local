@@ -21,8 +21,9 @@ from tqdm.auto import tqdm
 from answer_extractor import extract_answer, official_gold, is_correct
 
 
-SYSTEM_PROMPT = ''
-
+SYSTEM_PROMPT = (
+    'You are a helpful assistant.'
+)
 
 def build_messages(question: str):
     return [
