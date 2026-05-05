@@ -1,119 +1,161 @@
 # RL_GRPO_train
 
-这个模块负责 TRL GRPO 训练。默认从当前 SFT LoRA adapter 继续训练，但不会修改原始 SFT checkpoint；训练输出写入固定目录 `outputs/{run.name}`。
+This module runs GSM8K RL training with TRL on top of the LLM project's Qwen2.5-3B base SFT LoRA adapter.
 
-训练阶段默认验证集是 `SFT_train/data/gsm8k_sft_val.json`，它来自 GSM8K train split 的 held-out subset，和现有 SFT 验证口径一致。官方 GSM8K test 只在最终测试时手动选择性运行。
-
-## 目录结构
-
-- `configs/qwen25_3b_sft_grpo.yaml`：默认 GRPO baseline 配置。
-- `train_grpo.py`：训练入口。
-- `outputs/{run.name}/final_adapter/`：当前 best adapter，只保留一份。
-- `outputs/{run.name}/best_eval_results.json`：best checkpoint 对应的 greedy eval准确率结果。
-- `outputs/{run.name}/resolved_config.yaml`：实际使用的配置。
-
-`run.name` 支持从 YAML 参数自动填充，例如：
+The RL starting point is:
 
 ```yaml
-run:
-  name: qwen25_3b_instruct_sft_grpo_g{grpo.num_generations}_train{train_dataset.limit}
+model:
+  base_model_name_or_path: Qwen/Qwen2.5-3B
+  adapter_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
+  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
 ```
 
-如果 `train_dataset.limit` 留空，目录名里的这部分会解析为 `trainall`。
+Do not replace these with the Instruct SFT adapter unless the experiment is explicitly changed. The base SFT tokenizer uses `<|im_end|>` as the chat stop token and `<|endoftext|>` as the pad token, so the RL configs register both as compatible EOS tokens.
 
-## Colab 准备
+## Files
 
-在 Colab Secret 中配置：
+- `configs/qwen25_3b_base_sft_grpo.yaml`: GRPO baseline.
+- `configs/qwen25_3b_base_sft_gspo.yaml`: GSPO-style sequence-level importance sampling.
+- `configs/qwen25_3b_base_sft_dapo.yaml`: DAPO-style loss, truncated-completion masking, asymmetric clipping, and soft overlong punishment.
+- `train_grpo.py`: shared training and eval entrypoint.
+- `colab_grpo_train.ipynb`, `colab_gspo_train.ipynb`, `colab_dapo_train.ipynb`: Colab runners for the three configs.
 
-- `HF_TOKEN`：如果模型或数据需要 Hugging Face token。
-- `SWANLAB_API_KEY`：SwanLab 训练记录。
+Training outputs are written to `RL_GRPO_train/outputs/{run.name}`. This directory is intentionally not included before running.
 
-```python
-from google.colab import userdata
-import os
+## Colab Setup
 
-for key in ["HF_TOKEN", "SWANLAB_API_KEY"]:
-    value = userdata.get(key)
-    if value:
-        os.environ[key] = value
-```
-
-安装依赖：
-
-```bash
-cd /content/project
-pip install -e RL_common
-pip install "trl>=0.25.0" swanlab accelerate
-```
-
-如果之后要开启 vLLM，再额外安装：
-
-```bash
-pip install "trl[vllm]>=0.25.0"
-```
-
-## 训练
-
-已经运行完 `RL_dryrun_rollout`， `mixed_rate` 结果不错，可以启动训练。
-
-```bash
-accelerate launch RL_GRPO_train/train_grpo.py \
-  --config RL_GRPO_train/configs/qwen25_3b_sft_grpo.yaml
-```
-
-训练中自定义 greedy eval 默认每 10 step 跑一次，只评估 `sft_val`。如果 `sft_val/exact_match` 即验证集准确率变好，会覆盖保存：
+Mount Drive, open one of the notebooks, and point `PROJECT_DIR` at the LLM project root. The notebooks look for common locations such as:
 
 ```text
-RL_GRPO_train/outputs/qwen25_3b_instruct_sft_grpo_g4_trainall/final_adapter
+/content/drive/MyDrive/LLM_project
+/content/drive/MyDrive/LLM_project/project
+/content/project
 ```
 
-## 最终测试
+Required secrets:
 
-训练结束后，如需在官方 GSM8K test 上评估，可以手动运行：
+- `HF_TOKEN`, if Hugging Face access requires it.
+- `SWANLAB_API_KEY`, for SwanLab logging.
+
+The notebooks install:
+
+```bash
+pip install -q -U "trl[vllm]>=0.29.0" "accelerate>=1.4.0" swanlab bitsandbytes sentencepiece
+pip install -q -e RL_common
+```
+
+## Training
+
+Run one config with:
+
+```bash
+accelerate launch --num_processes 1 RL_GRPO_train/train_grpo.py \
+  --config RL_GRPO_train/configs/qwen25_3b_base_sft_grpo.yaml
+```
+
+Swap the config path for GSPO or DAPO:
+
+```bash
+RL_GRPO_train/configs/qwen25_3b_base_sft_gspo.yaml
+RL_GRPO_train/configs/qwen25_3b_base_sft_dapo.yaml
+```
+
+All three configs keep the HPML RL hyperparameters aligned: 1000 steps, learning rate `2.0e-6`, `num_generations: 16`, generation batch size `512`, gradient accumulation `2`, cosine scheduler, vLLM colocate mode, and seed `42`.
+
+## Algorithm Differences
+
+GRPO is the baseline. It samples multiple completions per prompt and compares rewards inside each prompt group. This avoids a separate value model and uses group-relative advantages.
+
+GSPO keeps the same reward, model, data, and training parameters as GRPO, but adds:
+
+```yaml
+grpo:
+  loss_type: grpo
+  importance_sampling_level: sequence
+```
+
+This makes importance sampling operate at the sequence level, so the policy update treats each full completion as the unit of comparison.
+
+DAPO changes the optimization details:
+
+```yaml
+grpo:
+  loss_type: dapo
+  mask_truncated_completions: true
+  epsilon: 0.2
+  epsilon_high: 0.28
+```
+
+It also adds TRL's soft overlong reward:
+
+```yaml
+reward:
+  soft_overlong_punishment:
+    enabled: true
+    max_completion_len: 256
+    soft_punish_cache: 51
+```
+
+This begins penalizing completions after roughly `256 - 51 = 205` tokens and excludes hard-truncated samples from the DAPO loss.
+
+## EOS Compatibility
+
+Each config includes:
+
+```yaml
+model:
+  eos_tokens:
+    - <|im_end|>
+    - <|endoftext|>
+```
+
+`train_grpo.py` resolves both token IDs at startup and fails fast if either token is missing. It injects the IDs into TRL generation kwargs for training and uses the same EOS set for greedy validation and final test evaluation. This is important because the LLM project uses a base-model SFT adapter with Qwen chat formatting, not the Instruct model defaults.
+
+If the tokenizer has no chat template, `train_grpo.py` injects the same Qwen-style chat template used by the base SFT adapter, with default system text:
+
+```text
+You are a helpful assistant.
+```
+
+## Metrics And Checkpoints
+
+TRL training metrics are reported to SwanLab via `report_to: swanlab`. The custom greedy validation callback logs compact `validation/*` metrics, including:
+
+- `validation/exact_match`
+- `validation/reward_mean`
+- `validation/reward_std`
+- `validation/format_exact_rate`
+- `validation/length_penalty_rate`
+- `validation/avg_output_tokens`
+- `validation/best_exact_match`
+
+The best adapter on `eval_dataset` is saved to:
+
+```text
+RL_GRPO_train/outputs/{run.name}/final_adapter
+```
+
+Only the current best adapter is kept.
+
+## Final Test
+
+The default official GSM8K test path is still the notebook eval path:
 
 ```bash
 python RL_GRPO_train/train_grpo.py \
-  --config RL_GRPO_train/configs/qwen25_3b_sft_grpo.yaml \
+  --config /content/{algo}_final_eval.yaml \
   --eval-only \
   --final-test
 ```
 
-更建议使用思谊的评测代码，确保评测口径的统一
-
-## 更换模型或 adapter
-
-所有关键模型路径都在 YAML：
+The notebook creates that temporary eval config by changing only:
 
 ```yaml
 model:
-  base_model_name_or_path: Qwen/Qwen2.5-3B-Instruct
-  adapter_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
-  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
-  prompt_template: qwen_chat
-  system_prompt: ""
-  include_empty_system: false
+  adapter_path: RL_GRPO_train/outputs/{run.name}/final_adapter
 ```
 
-`include_empty_system: false` 会让 Qwen chat template 自动插入默认 system prompt：
+It keeps `tokenizer_name_or_path` pointing at `SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full`, so tokenizer, chat template, and EOS behavior remain compatible.
 
-```text
-You are Qwen, created by Alibaba Cloud. You are a helpful assistant.
-```
-
-这与 SFT 训练时的 `template: qwen` 输入格式是对齐的。这部分，可能要检查一下评测代码的输入构建是否也是如此的，不然评测与训练的输入不同，的结果会有bias
-
-换成另一个 LoRA adapter：只改 `adapter_path`即可
-
-从无 adapter 的模型直接做 GRPO：把 `adapter_path` 留空，并按模型类型选择 prompt：
-
-```yaml
-prompt_template: qwen_chat
-```
-
-开启 vLLM 时，只改：
-
-```yaml
-grpo:
-  use_vllm: true
-  vllm_mode: colocate
-```
+The repository-level `evaluation/` module has a separate GSM8K eval path, but it is not the default final RL eval path for these notebooks.

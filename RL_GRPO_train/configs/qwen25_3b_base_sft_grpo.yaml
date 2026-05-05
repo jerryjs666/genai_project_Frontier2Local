@@ -1,15 +1,18 @@
 run:
-  name: qwen25_3b_instruct_sft_grpo_g{grpo.num_generations}_train{train_dataset.limit}
+  name: qwen25_3b_base_sft_grpo_g{grpo.num_generations}_train{train_dataset.limit}
   output_root: RL_GRPO_train/outputs
 
 model:
-  base_model_name_or_path: Qwen/Qwen2.5-3B-Instruct
-  adapter_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
-  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
+  base_model_name_or_path: Qwen/Qwen2.5-3B
+  adapter_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
+  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
   trust_remote_code: true
   prompt_template: qwen_chat
   system_prompt: ""
   include_empty_system: false
+  eos_tokens:
+    - <|im_end|>
+    - <|endoftext|>
   dtype: bf16
   device_map:
   load_in_4bit: false
@@ -39,15 +42,15 @@ final_eval_dataset:
 reward:
   answer_correct: 1.0
   answer_incorrect: 0.0
-  format_reward: 0.3
-  parse_fail_penalty: -0.2
+  format_reward: 0.2
+  parse_fail_penalty: -0.1
   length_penalty: -0.05
-  min_completion_tokens: 20
-  max_completion_tokens: 125
+  min_completion_tokens: 50
+  max_completion_tokens: 180
 
 eval:
-  every_steps: 10
-  batch_size: 370
+  every_steps: 20
+  batch_size: 726
   max_prompt_length: 512
   max_new_tokens: 256
   metric_for_best: exact_match
@@ -56,11 +59,14 @@ grpo:
   per_device_train_batch_size: 32
   num_generations: 16
   generation_batch_size: 512
-  gradient_accumulation_steps: 1
-  learning_rate: 1.0e-6
+  gradient_accumulation_steps: 2
+  temperature: 1.0
+  top_p: 0.95
+  learning_rate: 3.0e-6
+  lr_scheduler_type: cosine
   max_prompt_length: 512
-  max_completion_length: 128
-  max_steps: 100
+  max_completion_length: 256
+  max_steps: 1500
   warmup_ratio: 0.03
   weight_decay: 0.0
   max_grad_norm: 1.0
@@ -72,6 +78,9 @@ grpo:
   gradient_checkpointing: true
   bf16: true
   report_to: "swanlab"
-  run_name: qwen25_3b_instruct_sft_grpo_g{grpo.num_generations}
+  run_name: qwen25_3b_base_sft_grpo_g{grpo.num_generations}
   use_vllm: true
   vllm_mode: colocate
+  loss_type: grpo
+  seed: 42
+  data_seed: 42
