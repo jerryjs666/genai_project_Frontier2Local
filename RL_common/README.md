@@ -21,9 +21,9 @@ pip install -e RL_common
 
 ```yaml
 model:
-  base_model_name_or_path: Qwen/Qwen2.5-3B-Instruct
-  adapter_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
-  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full
+  base_model_name_or_path: Qwen/Qwen2.5-3B
+  adapter_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
+  tokenizer_name_or_path: SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full
   prompt_template: qwen_chat
   system_prompt: ""
   include_empty_system: false
