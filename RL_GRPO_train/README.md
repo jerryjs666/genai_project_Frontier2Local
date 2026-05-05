@@ -87,6 +87,8 @@ grpo:
   epsilon_high: 0.28
 ```
 
+The DAPO config intentionally does not set `beta`. In TRL, `loss_type: dapo` selects the DAPO loss, while a nonzero `beta` separately enables reference-model KL regularization. Keeping `beta` unset preserves the KL-free DAPO setup.
+
 It also adds TRL's soft overlong reward:
 
 ```yaml
