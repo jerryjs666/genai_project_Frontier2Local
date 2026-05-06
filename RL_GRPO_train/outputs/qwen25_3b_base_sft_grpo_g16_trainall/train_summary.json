@@ -1,0 +1,13 @@
+{
+  "global_step": 1500,
+  "train_metrics": {
+    "train_runtime": 14213.1107,
+    "train_samples_per_second": 6.754,
+    "train_steps_per_second": 0.106,
+    "total_flos": 0.0,
+    "train_loss": -0.02304706501898666
+  },
+  "best_step": 620,
+  "best_metric": 0.926897,
+  "best_metric_name": "validation/exact_match"
+}

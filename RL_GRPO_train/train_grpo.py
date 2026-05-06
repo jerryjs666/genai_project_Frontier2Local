@@ -353,14 +353,32 @@ def _inject_eos_generation_kwargs(grpo_cfg: dict[str, Any], eos_token_ids: list[
     if not isinstance(generation_kwargs, dict):
         raise TypeError("grpo.generation_kwargs must be a mapping when set")
 
-    configured = generation_kwargs.get("eos_token_id")
-    expected = eos_token_ids if len(eos_token_ids) > 1 else eos_token_ids[0]
-    if configured is not None and configured != expected:
+    # TRL passes generation_kwargs directly into vLLM SamplingParams when
+    # use_vllm=true. vLLM SamplingParams does not accept eos_token_id, so
+    # use stop_token_ids for Qwen chat/EOS stopping instead.
+    configured_eos = generation_kwargs.pop("eos_token_id", None)
+    expected_eos = eos_token_ids if len(eos_token_ids) > 1 else eos_token_ids[0]
+    if configured_eos is not None and configured_eos != expected_eos:
         raise ValueError(
             "grpo.generation_kwargs.eos_token_id conflicts with model.eos_tokens. "
-            f"Expected {expected!r}, got {configured!r}."
+            f"Expected {expected_eos!r}, got {configured_eos!r}."
         )
-    generation_kwargs["eos_token_id"] = expected
+
+    configured_stop_ids = generation_kwargs.get("stop_token_ids")
+    if configured_stop_ids is not None:
+        if isinstance(configured_stop_ids, int):
+            configured_stop_ids = [configured_stop_ids]
+        if not isinstance(configured_stop_ids, list) or not all(
+            isinstance(token_id, int) for token_id in configured_stop_ids
+        ):
+            raise TypeError("grpo.generation_kwargs.stop_token_ids must be an int or a list of ints")
+        generation_kwargs["stop_token_ids"] = list(dict.fromkeys(configured_stop_ids + eos_token_ids))
+    else:
+        generation_kwargs["stop_token_ids"] = eos_token_ids
+
+    # Also stop if the decoded chat template marker appears as text. This is
+    # accepted by vLLM and is harmless for non-vLLM generation.
+    generation_kwargs.setdefault("stop", ["<|im_end|>"])
 
 
 def _run_enriched_greedy_eval(
