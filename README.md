@@ -312,7 +312,7 @@ Required secrets (set in Colab Secrets or as environment variables):
 | `HF_TOKEN` | Stage 1–2: downloading gated HuggingFace models |
 | `SWANLAB_API_KEY` | Stage 2: RL experiment tracking |
 
-> **Note on Git LFS:** This repo contains large binary files (`.safetensors` adapter weights) tracked via Git LFS. If cloning fails due to LFS quota, a full copy of the repo including all model weights is available at: *(Google Drive link — coming soon)*
+> **Note on Git LFS:** This repo contains large binary files (`.safetensors` adapter weights) tracked via Git LFS. If cloning fails due to LFS quota, a full copy of the repo including all model weights is available at: [Google Drive](https://drive.google.com/file/d/1cavlgUo2gjFW_EJBV4BCjime7XB6odX2/view?usp=sharing)
 
 ---
 
@@ -355,7 +355,7 @@ Clone without LFS first, then download weights separately:
 GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/jerryjs666/genai_project_Frontier2Local.git
 ```
 
-Then download model weights from the Google Drive link above. *(Link coming soon)*
+Then download model weights from the [Google Drive backup](https://drive.google.com/file/d/1cavlgUo2gjFW_EJBV4BCjime7XB6odX2/view?usp=share_link).
 
 ---
 
