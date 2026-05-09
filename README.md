@@ -50,7 +50,7 @@ Frontier2Local/
 │   ├── outputs/               # Trained LoRA adapters and training logs
 │   ├── train_qwen25_3b_lora_sft.yaml        # LLaMA-Factory training config
 │   ├── qwen25_3b_llamafactory_lora_sft_colab_train.ipynb      # Instruct SFT notebook
-│   └── qwen25_3b_base_llamafactory_lora_sft_colab_train.ipynb # Base SFT notebook
+│   └── qwen25_3b_base_llamafactory_lora_sft_colab_train.ipynb # Base SFT notebook (main pipeline)
 │
 ├── RL_GRPO_train/             # RL post-training (GRPO / GSPO / DAPO)
 │   ├── configs/               # Per-algorithm YAML configs
@@ -184,11 +184,11 @@ Three RL algorithms are applied as a second stage on top of the SFT LoRA checkpo
 
 **Training results:**
 
-| Algorithm | Best Val Exact Match | Best Step | Runtime |
-|---|---|---|---|
-| GRPO | 92.69% | 620 | ~3.95 h |
-| GSPO | 91.31% | 1,120 | ~3.96 h |
-| DAPO | 91.86% | 600 | ~3.45 h |
+| Algorithm | Best Val Exact Match | GSM8K Test Accuracy |
+|---|---|---|
+| GRPO | 92.69% | 80.67% |
+| DAPO | 91.86% | 81.12% |
+| GSPO ★ | 91.31% | **82.03%** |
 
 **To train:**
 ```bash
@@ -205,11 +205,14 @@ accelerate launch --num_processes 1 RL_GRPO_train/train_grpo.py \
   --config RL_GRPO_train/configs/qwen25_3b_base_sft_dapo.yaml
 ```
 
-Or open the corresponding Colab notebook (`colab_grpo_train.ipynb`, etc.) and point `PROJECT_DIR` at the repo root.
+Or open the corresponding Colab notebook and point `PROJECT_DIR` at the repo root.
 
 **Required secrets (Colab):**
-- `HF_TOKEN` — for gated HuggingFace models, if needed
-- `SWANLAB_API_KEY` — for SwanLab experiment tracking
+
+| Secret | Required for |
+|---|---|
+| `HF_TOKEN` | Downloading gated HuggingFace models |
+| `SWANLAB_API_KEY` | RL experiment tracking |
 
 **Install dependencies:**
 ```bash
@@ -223,7 +226,7 @@ pip install -q -e RL_common
 
 Each completion is scored by:
 
-| Component | Condition | Value (default) |
+| Component | Condition | Value |
 |---|---|---|
 | Answer reward | Correct final answer | +1.0 |
 | Answer reward | Incorrect | 0.0 |
@@ -237,29 +240,23 @@ Answer extraction uses a three-tier fallback: `"The answer is <number>"` → `\b
 
 ## Evaluation (`evaluation/`)
 
-The standalone evaluation module runs batched greedy-decoding on any base model or LoRA checkpoint against the GSM8K test or train split.
+The standalone evaluation module runs batched greedy-decoding on any base model or LoRA checkpoint against the GSM8K test or val split.
 
-**Configure** `evaluation/config.yaml`:
-```yaml
-model_id: "Qwen/Qwen2.5-3B-Instruct"
-lora_checkpoint: "SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full/checkpoint-1200"  # or null for base model
-dataset_name: "openai/gsm8k"
-splits: [test]
-max_new_tokens: 512
-eval_batch_size: 256
-output_dir: "evaluation/results"
-output_prefix: "my_run"
+**Configure** `evaluation/config.yaml` and run:
+```bash
+pip install -e RL_common
+python evaluation/evaluate.py --config evaluation/config.yaml
 ```
 
-Results are saved as `evaluation/results/{output_prefix}_{split}.json`, containing a top-level `summary` (accuracy, totals, latency) and a `results` list with per-example predictions.
+Or open `evaluation/run_eval_colab.ipynb`.
 
-RL final-test evaluation is handled directly by `train_grpo.py --eval-only --final-test` within the Colab notebooks, using a temporary YAML that points `adapter_path` at the best RL checkpoint.
+RL final-test evaluation is handled directly by `train_grpo.py --eval-only --final-test` within the Colab notebooks. Results are saved to `RL_GRPO_train/outputs/{run_name}/`.
 
 ---
 
 ## Shared Utilities (`RL_common/`)
 
-The `rl-common` package is a lightweight Python package used by both RL training and evaluation. Install with:
+Install with:
 ```bash
 pip install -e RL_common
 ```
@@ -284,29 +281,102 @@ model:
   include_empty_system: false
 ```
 
-Set `adapter_path` to empty or null to evaluate the base model without any adapter.
+---
+
+## Environment Setup
+
+Python ≥ 3.10 is required. All training stages are designed to run on **Google Colab with an A100 GPU (40GB)**.
+
+### Local setup
+
+```bash
+git clone https://github.com/jerryjs666/genai_project_Frontier2Local.git
+cd genai_project_Frontier2Local
+pip install -r requirements.txt
+pip install -e SFT_data_generation
+pip install -e RL_common
+```
+
+### Colab setup
+
+1. Mount Google Drive and clone or copy the repo to Drive.
+2. Open the relevant notebook (`SFT_train/`, `RL_GRPO_train/`, or `evaluation/`).
+3. Set `PROJECT_DIR` to the repo root (e.g. `/content/drive/MyDrive/LLM_project`).
+4. Run the dependency install cell at the top of the notebook.
+
+Required secrets (set in Colab Secrets or as environment variables):
+
+| Secret | Required for |
+|---|---|
+| `DASHSCOPE_API_KEY` | Stage 0: teacher data generation |
+| `HF_TOKEN` | Stage 1–2: downloading gated HuggingFace models |
+| `SWANLAB_API_KEY` | Stage 2: RL experiment tracking |
+
+> **Note on Git LFS:** This repo contains large binary files (`.safetensors` adapter weights) tracked via Git LFS. If cloning fails due to LFS quota, a full copy of the repo including all model weights is available at: *(Google Drive link — coming soon)*
 
 ---
 
-## EOS Token Compatibility
+## Troubleshooting
 
-The SFT adapter is trained on the base model (not the Instruct variant) and uses Qwen chat formatting with `<|im_end|>` as the chat stop token and `<|endoftext|>` as the pad token. All RL configs register both as compatible EOS tokens:
+### CUDA out of memory during RL training
 
-```yaml
-model:
-  eos_tokens:
-    - <|im_end|>
-    - <|endoftext|>
+Reduce `generation.batch_size` in the YAML config (default: 512). Start with 128 or 256 and increase until stable. Alternatively, reduce `num_generations`.
+
+### Colab session disconnects mid-training
+
+The RL training script saves the best adapter to `final_adapter/` whenever validation improves. If the session drops, resume by pointing `adapter_path` in the config to the last saved `final_adapter/` and re-launching training. Check `train_summary.json` and `best_eval_results.json` to see where training left off.
+
+### DashScope API errors or timeouts (Stage 0)
+
+The generation script has built-in retry logic. If the run is interrupted, re-run with `dataset.offset` set to the last completed index in `run_stats.json` to avoid duplicating API calls. Check that `DASHSCOPE_API_KEY` is correctly set and has sufficient quota (~13.3M tokens required for the full GSM8K train split).
+
+### `pip install -e RL_common` fails with "package not found"
+
+Run the command from the **repo root**, not from inside `RL_common/`:
+
+```bash
+cd /path/to/genai_project_Frontier2Local
+pip install -e RL_common
 ```
 
-`train_grpo.py` resolves both token IDs at startup and fails immediately if either is missing. If the tokenizer has no chat template, it injects a Qwen-style template with `"You are a helpful assistant."` as the default system prompt.
+### EOS token resolution error at RL training startup
+
+`train_grpo.py` resolves `<|im_end|>` and `<|endoftext|>` at startup and fails immediately if either is missing. Make sure `tokenizer_name_or_path` points to `SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full`, not the base HuggingFace model.
+
+### Tokenizer has no chat template warning
+
+This is expected when using the base SFT adapter. `train_grpo.py` automatically injects the Qwen-style template with `"You are a helpful assistant."` and can be safely ignored.
+
+### Git LFS quota exceeded when cloning
+
+Clone without LFS first, then download weights separately:
+
+```bash
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/jerryjs666/genai_project_Frontier2Local.git
+```
+
+Then download model weights from the Google Drive link above. *(Link coming soon)*
+
+---
+
+## Reproducibility
+
+All experiments are fully reproducible from the artifacts committed to this repository. End-to-end pipeline correctness is evidenced by the saved `resolved_config.yaml` and result JSON files in each module's `outputs/` directory, covering all stages from teacher data generation through SFT and RL alignment to final evaluation.
+
+Key reproducibility anchors:
+
+- Seed `42` used across all RL runs
+- `resolved_config.yaml` saved alongside every training and eval run
+- SFT dataset committed at `SFT_data_generation/outputs/runs/20260426_132022/success.jsonl`
+- All LoRA adapter weights committed under `SFT_train/outputs/` and `RL_GRPO_train/outputs/`
+- Per-question evaluation results saved as JSON under `evaluation/results/` and `RL_GRPO_train/outputs/`
 
 ---
 
 ## Key Findings
 
 - **Prompting alone is already meaningful.** With a standard system prompt, Qwen2.5-3B reaches 66.49% on GSM8K — it can reason out of the box.
-- **SFT distillation provides a large clean gain.** Training on 7,256 answer-verified teacher traces raises accuracy to 72.78% (+6.3 pp). The improvement is entirely from better math reasoning: format failures drop from 784 to 1 (−99.9%), and math errors decrease by 65 (−15.3%).
+- **SFT distillation provides a large clean gain.** Training on 7,256 answer-verified teacher traces raises accuracy to 72.78% (+6.3 pp). Format failures drop from 784 to 1 (−99.9%), and math errors decrease by 65 (−15.3%).
 - **RL alignment pushes well past the SFT ceiling.** All three RL algorithms surpass 80%, with GSPO reaching 82.03%.
 - **Our 3B model nearly matches Qwen2.5-7B-Instruct (≈83%)** at less than half the parameters.
 
@@ -315,8 +385,8 @@ model:
 ## Limitations and Future Work
 
 - **API cost limits dataset volume.** Scaling to larger datasets or harder benchmarks (AIME, MATH) would require significant API budget.
-- **Text-only distillation.** The teacher API does not expose logits, so token-level distillation methods (KL matching, DPO with teacher distributions) are not currently possible.
-- Future directions include logit distillation if API access improves, scaling to harder reasoning tasks, and exploring FIPO dense advantage estimation.
+- **Text-only distillation.** The teacher API does not expose logits, so token-level distillation methods are not currently possible.
+- Future directions include multi-path teacher reasoning for SFT augmentation, denser advantage credit assignment, and FIPO for future-token advantage modeling.
 
 ---
 
@@ -330,7 +400,7 @@ model:
 | GRPO best adapter | `RL_GRPO_train/outputs/qwen25_3b_base_sft_grpo_g16_trainall/final_adapter/` |
 | GSPO best adapter | `RL_GRPO_train/outputs/qwen25_3b_base_sft_gspo_g16_trainall/final_adapter/` |
 | DAPO best adapter | `RL_GRPO_train/outputs/qwen25_3b_base_sft_dapo_g16_trainall/final_adapter/` |
-| Per-model evaluation results | `evaluation/results/` |
+| Per-model evaluation results | `evaluation/results/` and `RL_GRPO_train/outputs/` |
 
 ---
 
@@ -342,4 +412,4 @@ model:
 - Training frameworks: [LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory), [TRL](https://github.com/huggingface/trl)
 - Experiment tracking: [SwanLab](https://swanlab.cn/)
 
-All training history of this project can be tracked through this Swanlab link: [Frontier2Local](https://swanlab.cn/@1416079864)
+All training history can be tracked via SwanLab: [Frontier2Local](https://swanlab.cn/@1416079864)
