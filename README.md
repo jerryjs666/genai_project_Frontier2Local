@@ -16,10 +16,10 @@ Frontier2Local is an end-to-end pipeline for transferring math reasoning ability
 | Stage | Model | GSM8K Test Accuracy |
 |---|---|---|
 | Baseline | Qwen2.5-3B (base, prompted) | 66.49% |
-| Stage 1 | + SFT on 7,256 teacher traces | 72.78% (+6.3 pp) |
+| Stage 1 | + SFT on 7,256 teacher traces | 72.78% (+6.29 pp) |
 | Stage 2 | + GRPO | 80.67% |
 | Stage 2 | + DAPO | 81.12% |
-| Stage 2 ★ | + GSPO | **82.03%** |
+| Stage 2 ★ | + GSPO | **82.03%** (+15.54 pp) |
 
 ---
 
