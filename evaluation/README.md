@@ -12,14 +12,26 @@ This module provides standalone GSM8K evaluation for all project checkpoints: ba
 
 ## Results Summary
 
-| Checkpoint | Split | Accuracy |
-|---|---|---|
-| `3b_base` | test | 66.49% |
-| `3b_base_sft` | test | 72.78% |
-| `3b_base_sft_grpo_g8_trainall` | test | 80.67% |
-| `3b_base_sft_gspo_g16_trainall` | test | 82.03% |
+| Checkpoint | Split | Accuracy | Results location |
+|---|---|---|---|
+| `3b_base` | test | 66.49% | `evaluation/results/3b_base/` |
+| `3b_base_sft` | test | 72.78% | `evaluation/results/3b_base_sft/` |
+| `3b_instruct` | test | — | `evaluation/results/3b_instruct/` (reference) |
+| `3b_instruct_sft` | test | — | `evaluation/results/3b_instruct_sft/` (experimental) |
+| `3b_base_sft_grpo` | test | 80.67% | `RL_GRPO_train/outputs/qwen25_3b_base_sft_grpo_g16_trainall_final_test/` |
+| `3b_base_sft_dapo` | test | 81.12% | `RL_GRPO_train/outputs/qwen25_3b_base_sft_dapo_g16_trainall_final_test/` |
+| `3b_base_sft_gspo` ⭐ | test | **82.03%** | `RL_GRPO_train/outputs/qwen25_3b_base_sft_gspo_g16_trainall_final_test/` |
 
-Full per-question outputs are stored as JSON in the corresponding `results/` subfolder.
+### Results folder layout
+
+```
+results/
+├── 3b_base/          # Qwen2.5-3B base, no fine-tuning
+├── 3b_base_sft/      # + SFT distillation
+├── 3b_instruct/      # Qwen2.5-3B-Instruct baseline (reference only)
+└── 3b_instruct_sft/  # Instruct + SFT (experimental, not main pipeline)
+```
+RL results (GRPO / DAPO / GSPO) are stored alongside their training outputs in RL_GRPO_train/outputs/.
 
 ## Usage
 
