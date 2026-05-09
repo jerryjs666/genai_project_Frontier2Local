@@ -1,23 +1,27 @@
 # RL_common
 
-这是 GSM8K RL post-training各阶段的共享工具包，例如reward构成、评测、加载数据和模型等公共接口，单独抽象出来以供复用
+Shared utilities for all GSM8K RL post-training stages (rollout diagnostics, GRPO, GSPO, DAPO). Extracted as a standalone installable package so reward functions, evaluation, data loading, and model loading stay consistent across modules.
 
-## 内容
+## Contents
 
-- `answers.py`：答案抽取与归一化。优先 `The answer is <number>`，其次 `\boxed{...}`，最后 fallback 到最后一个数值表达式。
-- `data.py`：加载 GSM8K train/test、现有 SFT train/val ID 文件，并映射官方 gold answer，简而言之就是validation与sft时保持一致。
-- `rewards.py`：answer reward、format reward、parse/length penalty、dry-run group diagnostics等各种reward组成。
-- `eval.py`：通用评估脚本，可用于 validation 或 test。
-- `model.py`：从 YAML 参数加载 base model、tokenizer和LoRA adapter。
+- `answers.py`: answer extraction and normalization. Priority order: `The answer is <number>` → `\boxed{...}` → last numeric expression in the output.
+- `data.py`: loads the GSM8K train/test splits, maps official gold answers, and cross-references SFT train/val IDs to prevent data leakage between SFT and RL validation.
+- `rewards.py`: reward components — answer correctness reward, format reward, parse/length penalty, and dry-run group diagnostics.
+- `eval.py`: general-purpose evaluation loop, usable for both validation and final test evaluation.
+- `model.py`: loads a base model, tokenizer, and optional LoRA adapter from a YAML config.
+- `prompts.py`: prompt templates and chat format utilities.
+- `config.py`: config dataclasses and YAML loading helpers.
 
-## Colab 安装
+## Installation
 
 ```bash
-cd /content/project
+cd /content/project   # or the repo root
 pip install -e RL_common
 ```
 
-模型替换主要通过调用方 YAML 完成，例如：
+## Model Configuration
+
+All RL modules configure the model through a YAML block. The default for the main pipeline:
 
 ```yaml
 model:
@@ -29,4 +33,11 @@ model:
   include_empty_system: false
 ```
 
-如果不用 LoRA adapter，把 `adapter_path` 留空即可。
+To run without a LoRA adapter (base model only), leave `adapter_path` empty or omit it.
+
+## Tests
+
+```bash
+pytest RL_common/tests/
+```
+

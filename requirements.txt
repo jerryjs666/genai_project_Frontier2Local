@@ -1,0 +1,30 @@
+# Frontier2Local — Python dependencies
+# Python >= 3.10 required
+#
+# Install order matters for Colab:
+#   1. pip install -r requirements.txt
+#   2. pip install -e SFT_data_generation
+#   3. pip install -e RL_common
+#
+# LLaMA-Factory (SFT stage) is installed separately via the Colab notebook.
+
+# ── Core ML ──────────────────────────────────────────────────────────────────
+torch>=2.1.0
+transformers>=4.40.0
+datasets>=4.8.4
+peft>=0.10.0
+accelerate>=1.4.0
+bitsandbytes>=0.43.0
+sentencepiece>=0.1.99
+
+# ── RL training (TRL + vLLM backend) ─────────────────────────────────────────
+trl[vllm]>=0.29.0
+
+# ── Data generation (DashScope via OpenAI-compatible client) ──────────────────
+openai>=1.0.0
+
+# ── Config and utilities ──────────────────────────────────────────────────────
+PyYAML>=6.0
+
+# ── Experiment tracking ───────────────────────────────────────────────────────
+swanlab

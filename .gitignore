@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment / secrets
+.env
+*.env
+
+# Logs
+*.log
+
+# Model weights (large files — use Git LFS or HuggingFace Hub instead)
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# Training artifacts (keep configs and result JSONs, not binary checkpoints)
+**/checkpoint-*/adapter_model.safetensors
+**/checkpoint-*/training_args.bin
+
+# IDE
+.vscode/
+.idea/
