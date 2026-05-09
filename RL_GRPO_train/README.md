@@ -21,7 +21,7 @@ Do not replace these with the Instruct SFT adapter unless the experiment is expl
 - `train_grpo.py`: shared training and eval entrypoint.
 - `colab_grpo_train.ipynb`, `colab_gspo_train.ipynb`, `colab_dapo_train.ipynb`: Colab runners for the three configs.
 
-Training outputs are written to `RL_GRPO_train/outputs/{run.name}`. This directory is intentionally not included before running.
+Training outputs are written to RL_GRPO_train/outputs/{run.name}.
 
 ## Colab Setup
 

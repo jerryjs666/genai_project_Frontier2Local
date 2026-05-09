@@ -324,12 +324,12 @@ model:
 
 | Artifact | Location |
 |---|---|
-| Teacher-distilled dataset (7,256 traces) | `SFT_data_generation/outputs/success.jsonl` |
+| Teacher-distilled dataset (7,256 traces) | `SFT_data_generation/outputs/runs/20260426_132022/success.jsonl` |
 | SFT LoRA adapter (base model) | `SFT_train/outputs/qwen25_3b_base_gsm8k_lora_sft_full/` |
 | SFT LoRA adapter (instruct model) | `SFT_train/outputs/qwen25_3b_gsm8k_lora_sft_full/` |
 | GRPO best adapter | `RL_GRPO_train/outputs/qwen25_3b_base_sft_grpo_g16_trainall/final_adapter/` |
 | GSPO best adapter | `RL_GRPO_train/outputs/qwen25_3b_base_sft_gspo_g16_trainall/final_adapter/` |
-| DAPO best adapter | `RL_GRPO_train/outputs/` (see `dapo_train_summary.json`) |
+| DAPO best adapter | `RL_GRPO_train/outputs/qwen25_3b_base_sft_dapo_g16_trainall/final_adapter/` |
 | Per-model evaluation results | `evaluation/results/` |
 
 ---
